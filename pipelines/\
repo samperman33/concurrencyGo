@@ -1,0 +1,76 @@
+package main
+
+import (
+	"fmt"
+	"math/rand"
+	"os"
+	"strconv"
+	"time"
+)
+
+var CLOSEA = false
+var DATA = make(map[int]bool)
+
+// генерация чисел в заданном диапазоне
+func random(min, max int) int {
+	return rand.Intn(max-min) + min
+}
+
+// получение(в канал А) и передача(в канал В) сгенерированных чисел 
+func first(min, max int, out chan<- int) {
+	for {
+		if CLOSEA {
+			close(out)
+			return
+		}
+	out <- random(min, max)
+	}
+}
+
+// передача из канала В приемлемых случайных чисел в третью функцию
+func second(out chan<- int, in <-chan int) {
+	for x := range in {
+		fmt.Println(x, " ")
+		_, exist := DATA[x]
+		if exist {
+			CLOSEA = true
+		} else {
+			DATA[x] = true
+			out <- x
+		}
+	}
+	fmt.Println()
+	close(out)
+}
+
+// получение данных из канал В и вычисление результатов
+func third(in <-chan int) {
+	sum := 0
+	for x2 := range in {
+		sum += x2
+	}
+	fmt.Printf("The sum of random nums is %d\n", sum)
+}
+
+func main() {
+	if len(os.Args) != 3 {
+		fmt.Println("Invalid input!")
+		return
+	}
+
+	n1, _ := strconv.Atoi(os.Args[1])
+	n2, _ := strconv.Atoi(os.Args[2])
+
+	if n1 > n2 {
+		fmt.Println("Invalid input(min > max)!")
+		return
+	}
+
+	rand.Seed(time.Now().UnixNano())
+	A := make(chan int)
+	B := make(chan int)
+
+	go first(n1, n2, A)
+	go second(B, A)
+	third(B)
+}
